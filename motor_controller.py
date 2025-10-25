@@ -43,6 +43,7 @@ except Exception:  # ImportError or runtime errors on non-Pi
 
 import sys
 import time
+import config
 
 
 class MotorController:
@@ -144,10 +145,15 @@ class MotorController:
         brake = max(0, min(100, brake))
         direction = 1 if direction else 0
 
-        # Map UI speed (0-100) to capped PWM duty (0-70% of 0-255)
-        speed_pwm = int((speed / 100.0) * 255 * 0.70)
-        # Brake remains full-range mapping (0-100 -> 0-255)
-        brake_pwm = int(brake * 2.55)
+        # Helper to map a UI value 0-100 to duty in 0..PWM_RANGE using raw [min,max]
+        def _map(ui_value, duty_min, duty_max):
+            ui_clamped = max(0, min(100, ui_value)) / 100.0
+            dmin = max(0, min(config.PWM_RANGE, duty_min))
+            dmax = max(0, min(config.PWM_RANGE, duty_max))
+            return int(round(dmin + (dmax - dmin) * ui_clamped))
+
+        speed_pwm = _map(speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+        brake_pwm = _map(brake, config.PWM_BRAKE_MIN, config.PWM_BRAKE_MAX)
 
         # Set direction
         self.pi.write(pins['direction'], direction)

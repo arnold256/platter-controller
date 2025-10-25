@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, disconnect
 from queue_manager import QueueManager
+import config
 from motor_controller import MotorController
 import threading
 import time
@@ -161,6 +162,12 @@ if __name__ == '__main__':
     
     try:
         # Under systemd this uses Werkzeug in threading mode; allow explicitly
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+        socketio.run(
+            app,
+            host=config.HOST,
+            port=config.PORT,
+            debug=config.DEBUG,
+            allow_unsafe_werkzeug=True,
+        )
     finally:
         motor_controller.cleanup()

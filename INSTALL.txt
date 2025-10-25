@@ -55,9 +55,9 @@ Running the Application:
 Manual start:
    ./start.sh
 
-The server will start on port 5000.
+The server will start on port 8080.
 Access from any device on the same network:
-   http://<raspberry-pi-ip>:5000
+   http://<raspberry-pi-ip>:8080
 
 To find your Pi's IP address:
    hostname -I

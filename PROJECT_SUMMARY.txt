@@ -66,7 +66,7 @@ Technical Details:
 - GPIO Library: pigpio (hardware PWM support)
 - PWM Frequency: 1000 Hz
 - PWM Resolution: 8-bit (0-255)
-- Server Port: 5000
+- Server Port: 8080
 - Queue Timeout: 120 seconds (configurable)
 
 Security Notes:
