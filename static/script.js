@@ -1,5 +1,3 @@
-const socket = io();
-
 let isControlling = false;
 let currentDirection = {1: 1, 2: 1, 3: 1};
 let timerInterval = null;
@@ -223,3 +221,6 @@ document.getElementById('stop-all-btn').addEventListener('click', () => {
 
 // Initialize UI
 updateUIState();
+
+// Initialize socket connection AFTER all handlers are set up
+const socket = io();
