@@ -21,7 +21,10 @@ def handle_connect():
     client_id = request.sid
     position = queue_manager.add_user(client_id)
     
+    print(f"User {client_id} connected at position {position}")
+    
     if position == 0:
+        print(f"Granting control to {client_id}")
         emit('control_granted', {'message': 'You have control'})
         emit('status_update', {
             'controlling': True,
@@ -29,6 +32,7 @@ def handle_connect():
             'queue_length': queue_manager.get_queue_length()
         })
     else:
+        print(f"Queuing {client_id} at position {position}")
         emit('queued', {
             'position': position,
             'message': f'You are #{position} in queue'
@@ -38,12 +42,6 @@ def handle_connect():
             'position': position,
             'queue_length': queue_manager.get_queue_length()
         })
-    
-    # Broadcast queue update to all clients
-    socketio.emit('queue_update', {
-        'queue_length': queue_manager.get_queue_length()
-    }, broadcast=True)
-
     
     # Broadcast queue update to all clients
     socketio.emit('queue_update', {

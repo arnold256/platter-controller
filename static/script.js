@@ -27,6 +27,7 @@ const motorState = {
 socket.on('connect', () => {
     console.log('Connected to server');
     statusMessage.textContent = 'Connected';
+    statusMessage.style.color = '#666';
 });
 
 socket.on('disconnect', () => {
@@ -40,8 +41,6 @@ socket.on('control_granted', (data) => {
     console.log('Control granted:', data);
     isControlling = true;
     controlStartTime = Date.now();
-    statusMessage.textContent = 'You have control!';
-    statusMessage.style.color = '#28a745';
     updateUIState();
     // Timer will be started based on hasQueueWaiting status in startTimer()
     startTimer();
@@ -50,8 +49,6 @@ socket.on('control_granted', (data) => {
 socket.on('queued', (data) => {
     console.log('Queued:', data);
     isControlling = false;
-    statusMessage.textContent = data.message;
-    statusMessage.style.color = '#ffc107';
     queuePosition.textContent = `Position: ${data.position}`;
     updateUIState();
 });
