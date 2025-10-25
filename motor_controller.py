@@ -172,11 +172,20 @@ class MotorController:
     
     def cleanup(self):
         """Cleanup GPIO on shutdown"""
-        self.stop_all()
-        
-        # Release all pins
-        for pins in self.motors.values():
-            self.pi.set_PWM_dutycycle(pins['speed'], 0)
-            self.pi.set_PWM_dutycycle(pins['brake'], 0)
-        
-        self.pi.stop()
+        try:
+            self.stop_all()
+            # Release all pins
+            for pins in self.motors.values():
+                try:
+                    self.pi.set_PWM_dutycycle(pins['speed'], 0)
+                    self.pi.set_PWM_dutycycle(pins['brake'], 0)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        finally:
+            try:
+                if hasattr(self.pi, 'stop'):
+                    self.pi.stop()
+            except Exception:
+                pass

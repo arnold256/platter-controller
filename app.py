@@ -160,6 +160,7 @@ if __name__ == '__main__':
     timeout_thread.start()
     
     try:
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+        # Under systemd this uses Werkzeug in threading mode; allow explicitly
+        socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
     finally:
         motor_controller.cleanup()
