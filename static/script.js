@@ -114,9 +114,13 @@ function updateUIState() {
     if (isControlling) {
         controlPanel.classList.remove('disabled');
         waitingPanel.classList.remove('active');
+        statusMessage.textContent = 'You have control!';
+        statusMessage.style.color = '#28a745';
     } else {
         controlPanel.classList.add('disabled');
         waitingPanel.classList.add('active');
+        statusMessage.textContent = 'Waiting for your turn...';
+        statusMessage.style.color = '#ffc107';
     }
 }
 
