@@ -21,6 +21,18 @@ const motorState = {
     3: {speed: 0, direction: 1, brake: 100}
 };
 
+// Debounce settings
+const DEBOUNCE_MS = 250;
+const debouncedSend = {};
+
+function debounce(fn, wait) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), wait);
+    };
+}
+
 // Initialize Socket.IO client FIRST (no auto-connect yet)
 const socket = io({ autoConnect: false });
 
@@ -173,6 +185,9 @@ function sendMotorControl(motorId) {
 
 // Setup motor control event listeners
 motors.forEach(motorId => {
+    // Create a debounced sender per motor
+    debouncedSend[motorId] = debounce(() => sendMotorControl(motorId), DEBOUNCE_MS);
+
     // Speed slider
     const speedSlider = document.getElementById(`speed${motorId}`);
     const speedValue = document.getElementById(`speed${motorId}-value`);
@@ -181,7 +196,8 @@ motors.forEach(motorId => {
         const value = parseInt(e.target.value);
         speedValue.textContent = value;
         motorState[motorId].speed = value;
-        sendMotorControl(motorId);
+        // Debounced send for speed changes
+        debouncedSend[motorId]();
     });
     
     // Brake slider
@@ -192,7 +208,8 @@ motors.forEach(motorId => {
         const value = parseInt(e.target.value);
         brakeValue.textContent = value;
         motorState[motorId].brake = value;
-        sendMotorControl(motorId);
+        // Debounced send for brake changes
+        debouncedSend[motorId]();
     });
     
     // Direction buttons
