@@ -42,6 +42,7 @@ except Exception:  # ImportError or runtime errors on non-Pi
             return _MockPi()
 
 import sys
+import time
 
 
 class MotorController:
@@ -80,15 +81,23 @@ class MotorController:
             }
         }
         
-        # Initialize pigpio
+        # Initialize pigpio with retries (pigpiod may still be starting)
         self.pi = pigpio.pi()
 
-        if getattr(self.pi, 'connected', True) is False:
-            # On Linux (Pi), enforce real connection so hardware actually works
+        # Note: pigpio sets .connected to 1 (connected) or 0 (not connected)
+        if not getattr(self.pi, 'connected', 1):
             if sys.platform.startswith('linux'):
-                raise Exception("Failed to connect to pigpio daemon")
-            # On non-Linux dev machines, fall back to mock
-            self.pi = _MockPi()
+                # Retry for up to 5 seconds
+                for _ in range(10):
+                    time.sleep(0.5)
+                    self.pi = pigpio.pi()
+                    if getattr(self.pi, 'connected', 0):
+                        break
+                if not getattr(self.pi, 'connected', 0):
+                    raise Exception("Failed to connect to pigpio daemon")
+            else:
+                # On non-Linux dev machines, fall back to mock
+                self.pi = _MockPi()
         
         # Setup all pins
         self._setup_pins()
