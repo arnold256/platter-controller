@@ -1,5 +1,5 @@
 [Unit]
-Description=Platter Art Controller
+Description=Platter Controller
 After=network.target pigpiod.service
 Requires=pigpiod.service
 

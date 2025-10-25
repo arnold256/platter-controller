@@ -21,11 +21,20 @@ const motorState = {
     3: {speed: 0, direction: 1, brake: 100}
 };
 
+// Initialize Socket.IO client FIRST (no auto-connect yet)
+const socket = io({ autoConnect: false });
+
 // Socket event handlers
 socket.on('connect', () => {
     console.log('Connected to server');
     statusMessage.textContent = 'Connected';
     statusMessage.style.color = '#666';
+});
+
+socket.on('connect_error', (err) => {
+    console.error('Socket connect_error:', err);
+    statusMessage.textContent = 'Connection failed';
+    statusMessage.style.color = '#dc3545';
 });
 
 socket.on('disconnect', () => {
@@ -222,5 +231,5 @@ document.getElementById('stop-all-btn').addEventListener('click', () => {
 // Initialize UI
 updateUIState();
 
-// Initialize socket connection AFTER all handlers are set up
-const socket = io();
+// Now connect after handlers are registered
+socket.connect();

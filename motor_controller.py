@@ -1,5 +1,48 @@
-import pigpio
 import atexit
+
+
+# Always define a minimal mock so we can fall back even if real pigpio imports
+class _MockPi:
+    OUTPUT = 1
+
+    def __init__(self):
+        self.connected = True
+
+    # Pin/Mode APIs
+    def set_mode(self, *args, **kwargs):
+        pass
+
+    def write(self, *args, **kwargs):
+        pass
+
+    # PWM APIs
+    def set_PWM_frequency(self, *args, **kwargs):
+        pass
+
+    def set_PWM_range(self, *args, **kwargs):
+        pass
+
+    def set_PWM_dutycycle(self, *args, **kwargs):
+        pass
+
+    def stop(self):
+        pass
+
+try:
+    import pigpio  # type: ignore
+    _PIGPIO_AVAILABLE = True
+except Exception:  # ImportError or runtime errors on non-Pi
+    _PIGPIO_AVAILABLE = False
+
+    class pigpio:  # minimal shim to match usage
+        OUTPUT = 1
+
+        @staticmethod
+        def pi():
+            return _MockPi()
+
+import sys
+
 
 class MotorController:
     def __init__(self):
@@ -39,9 +82,13 @@ class MotorController:
         
         # Initialize pigpio
         self.pi = pigpio.pi()
-        
-        if not self.pi.connected:
-            raise Exception("Failed to connect to pigpio daemon")
+
+        if getattr(self.pi, 'connected', True) is False:
+            # On Linux (Pi), enforce real connection so hardware actually works
+            if sys.platform.startswith('linux'):
+                raise Exception("Failed to connect to pigpio daemon")
+            # On non-Linux dev machines, fall back to mock
+            self.pi = _MockPi()
         
         # Setup all pins
         self._setup_pins()
@@ -82,20 +129,21 @@ class MotorController:
             return
         
         pins = self.motors[motor_id]
-        
-        # Clamp values
+
+        # Clamp values from UI
         speed = max(0, min(100, speed))
         brake = max(0, min(100, brake))
         direction = 1 if direction else 0
-        
-        # Convert percentage to 0-255 range
-        speed_pwm = int(speed * 2.55)
+
+        # Map UI speed (0-100) to capped PWM duty (0-70% of 0-255)
+        speed_pwm = int((speed / 100.0) * 255 * 0.70)
+        # Brake remains full-range mapping (0-100 -> 0-255)
         brake_pwm = int(brake * 2.55)
-        
+
         # Set direction
         self.pi.write(pins['direction'], direction)
-        
-        # Set PWM values
+
+        # Apply PWM values
         self.pi.set_PWM_dutycycle(pins['speed'], speed_pwm)
         self.pi.set_PWM_dutycycle(pins['brake'], brake_pwm)
     

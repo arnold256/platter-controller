@@ -1,5 +1,5 @@
 Flask==3.0.0
 flask-socketio==5.3.5
-pigpio==1.78
 python-socketio==5.10.0
-eventlet==0.33.3
+# pigpio is only needed on Raspberry Pi; it's mocked during local dev
+# pigpio==1.78

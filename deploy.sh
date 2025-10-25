@@ -23,7 +23,7 @@ sudo apt-get update
 
 # Install dependencies
 echo "Step 2: Installing system dependencies..."
-sudo apt-get install -y python3-pip python3-venv pigpio
+sudo apt-get install -y python3-pip python3-venv pigpio python3-pigpio
 
 # Enable pigpio
 echo "Step 3: Enabling pigpio daemon..."

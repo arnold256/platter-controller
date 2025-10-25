@@ -7,7 +7,14 @@ import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Use threading async mode for compatibility on Windows and enable verbose logs
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='threading',
+    logger=True,
+    engineio_logger=True,
+)
 
 motor_controller = MotorController()
 queue_manager = QueueManager(timeout_seconds=120)
@@ -17,7 +24,7 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth=None):
     client_id = request.sid
     position = queue_manager.add_user(client_id)
     
@@ -46,7 +53,7 @@ def handle_connect():
     # Broadcast queue update to all clients
     socketio.emit('queue_update', {
         'queue_length': queue_manager.get_queue_length()
-    }, broadcast=True)
+    })
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -73,7 +80,7 @@ def handle_disconnect():
     # Update all clients about queue status
     socketio.emit('queue_update', {
         'queue_length': queue_manager.get_queue_length()
-    }, broadcast=True)
+    })
 
 @socketio.on('motor_control')
 def handle_motor_control(data):
@@ -145,7 +152,7 @@ def check_timeouts():
             # Update all clients
             socketio.emit('queue_update', {
                 'queue_length': queue_manager.get_queue_length()
-            }, broadcast=True)
+            })
 
 if __name__ == '__main__':
     # Start timeout checker thread
