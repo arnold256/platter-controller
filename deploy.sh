@@ -58,12 +58,19 @@ chmod +x test_gpio.py
 # Setup systemd service
 echo "Step 7: Setting up systemd service..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="$SCRIPT_DIR/venv"
 sudo sed "s|/home/pi/platter_controller|$SCRIPT_DIR|g" platter-controller.service > /tmp/platter-controller.service
+sudo sed -i "s|User=pi|User=$USER|g" /tmp/platter-controller.service
+sudo sed -i "s|Environment=.*|Environment=\"PATH=$VENV_PATH/bin\"|g" /tmp/platter-controller.service
+sudo sed -i "s|ExecStart=.*|ExecStart=$VENV_PATH/bin/python3 $SCRIPT_DIR/app.py|g" /tmp/platter-controller.service
 sudo mv /tmp/platter-controller.service /etc/systemd/system/platter-controller.service
-sudo sed -i "s|User=pi|User=$USER|g" /etc/systemd/system/platter-controller.service
 
 # Reload systemd
 sudo systemctl daemon-reload
+
+# Enable the service for auto-start on boot
+echo "Step 8: Enabling auto-start on boot..."
+sudo systemctl enable platter-controller
 
 echo ""
 echo "=================================="
@@ -73,22 +80,31 @@ echo ""
 echo "Quick Commands:"
 echo "  Start manually:     ./start.sh"
 echo "  Test GPIO:          python3 test_gpio.py"
-echo "  Enable auto-start:  sudo systemctl enable platter-controller"
 echo "  Start service:      sudo systemctl start platter-controller"
+echo "  Stop service:       sudo systemctl stop platter-controller"
 echo "  Check status:       sudo systemctl status platter-controller"
 echo "  View logs:          sudo journalctl -u platter-controller -f"
+echo "  Disable auto-start: sudo systemctl disable platter-controller"
+echo ""
+echo "Service is already ENABLED for auto-start on boot!"
 echo ""
 echo "To find your Pi's IP address: hostname -I"
 echo "Access the web interface at: http://<your-pi-ip>:5000"
 echo ""
-echo "Would you like to start the service now? (y/n)"
-read -r response
+read -p "Would you like to start the service now? (y/n): " response
 
 if [ "$response" = "y" ]; then
+    echo ""
+    echo "Starting platter-controller service..."
     sudo systemctl start platter-controller
     echo "Service started! Checking status..."
     sleep 2
     sudo systemctl status platter-controller --no-pager
     echo ""
-    echo "Access at: http://$(hostname -I | awk '{print $1}'):5000"
+    IP_ADDR=$(hostname -I | awk '{print $1}')
+    echo "Access at: http://$IP_ADDR:5000"
+else
+    echo ""
+    echo "To start the service later, run:"
+    echo "  sudo systemctl start platter-controller"
 fi

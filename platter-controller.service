@@ -11,6 +11,8 @@ Environment="PATH=/home/pi/platter_controller/venv/bin"
 ExecStart=/home/pi/platter_controller/venv/bin/python3 /home/pi/platter_controller/app.py
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
