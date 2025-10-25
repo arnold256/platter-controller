@@ -1,0 +1,118 @@
+PLATTER CONTROLLER - Installation Instructions
+===============================================
+
+System Requirements:
+- Raspberry Pi Zero 2 W
+- Raspbian OS
+- Python 3.7+
+- Internet connection for initial setup
+
+GPIO Pin Assignments:
+---------------------
+Motor 1:
+  - Speed PWM: GPIO 18
+  - Brake PWM: GPIO 23
+  - Direction: GPIO 24
+
+Motor 2:
+  - Speed PWM: GPIO 13
+  - Brake PWM: GPIO 25
+  - Direction: GPIO 8
+
+Motor 3:
+  - Speed PWM: GPIO 12
+  - Brake PWM: GPIO 16
+  - Direction: GPIO 7
+
+Installation Steps:
+-------------------
+
+1. Update system packages:
+   sudo apt-get update
+   sudo apt-get upgrade -y
+
+2. Install required system packages:
+   sudo apt-get install -y python3-pip python3-venv pigpio
+
+3. Enable and start pigpio daemon:
+   sudo systemctl enable pigpiod
+   sudo systemctl start pigpiod
+
+4. Create virtual environment:
+   cd platter_controller
+   python3 -m venv venv
+   source venv/bin/activate
+
+5. Install Python dependencies:
+   pip install -r requirements.txt
+
+6. Make startup script executable:
+   chmod +x start.sh
+
+Running the Application:
+------------------------
+
+Manual start:
+   ./start.sh
+
+The server will start on port 5000.
+Access from any device on the same network:
+   http://<raspberry-pi-ip>:5000
+
+To find your Pi's IP address:
+   hostname -I
+
+Auto-start on Boot:
+-------------------
+
+1. Create systemd service file:
+   sudo nano /etc/systemd/system/platter-controller.service
+
+2. Add the following content (adjust paths):
+   [Unit]
+   Description=Platter Controller
+   After=network.target pigpiod.service
+
+   [Service]
+   Type=simple
+   User=pi
+   WorkingDirectory=/home/pi/platter_controller
+   ExecStart=/home/pi/platter_controller/venv/bin/python /home/pi/platter_controller/app.py
+   Restart=always
+
+   [Install]
+   WantedBy=multi-user.target
+
+3. Enable and start service:
+   sudo systemctl enable platter-controller
+   sudo systemctl start platter-controller
+
+4. Check status:
+   sudo systemctl status platter-controller
+
+Usage:
+------
+1. Connect to the web interface from any browser
+2. First user gets immediate control
+3. Additional users are placed in queue
+4. Each user gets 2 minutes (only if others are waiting)
+5. Use sliders to control motor speed and brake
+6. Click direction buttons to change rotation
+7. Emergency stop button stops all motors
+
+Troubleshooting:
+----------------
+
+If motors don't respond:
+- Check pigpiod is running: ps aux | grep pigpiod
+- Verify GPIO connections
+- Check system logs: journalctl -u platter-controller -f
+
+If web interface won't load:
+- Check firewall settings
+- Verify the app is running: ps aux | grep python
+- Check for port conflicts
+
+Network Access:
+- Local network: http://<pi-ip>:5000
+- To access from outside network, setup port forwarding on your router

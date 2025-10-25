@@ -1,0 +1,16 @@
+[Unit]
+Description=Platter Art Controller
+After=network.target pigpiod.service
+Requires=pigpiod.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/platter_controller
+Environment="PATH=/home/pi/platter_controller/venv/bin"
+ExecStart=/home/pi/platter_controller/venv/bin/python3 /home/pi/platter_controller/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

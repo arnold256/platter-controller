@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platter Controller</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Platter Art Controller</h1>
+        
+        <div id="status-bar" class="status-bar">
+            <div id="status-message">Connecting...</div>
+            <div id="timer-display"></div>
+            <div id="queue-info">Queue: 0</div>
+        </div>
+        
+        <div id="control-panel" class="control-panel disabled">
+            <!-- Motor 1 -->
+            <div class="motor-control">
+                <h2>Motor 1</h2>
+                <div class="control-group">
+                    <label>Speed: <span id="speed1-value">0</span>%</label>
+                    <input type="range" id="speed1" min="0" max="100" value="0" class="slider">
+                </div>
+                <div class="control-group">
+                    <label>Direction:</label>
+                    <div class="direction-control">
+                        <button class="dir-btn" data-motor="1" data-dir="0">◄ CCW</button>
+                        <button class="dir-btn active" data-motor="1" data-dir="1">CW ►</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Brake: <span id="brake1-value">100</span>%</label>
+                    <input type="range" id="brake1" min="0" max="100" value="100" class="slider">
+                </div>
+            </div>
+            
+            <!-- Motor 2 -->
+            <div class="motor-control">
+                <h2>Motor 2</h2>
+                <div class="control-group">
+                    <label>Speed: <span id="speed2-value">0</span>%</label>
+                    <input type="range" id="speed2" min="0" max="100" value="0" class="slider">
+                </div>
+                <div class="control-group">
+                    <label>Direction:</label>
+                    <div class="direction-control">
+                        <button class="dir-btn" data-motor="2" data-dir="0">◄ CCW</button>
+                        <button class="dir-btn active" data-motor="2" data-dir="1">CW ►</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Brake: <span id="brake2-value">100</span>%</label>
+                    <input type="range" id="brake2" min="0" max="100" value="100" class="slider">
+                </div>
+            </div>
+            
+            <!-- Motor 3 -->
+            <div class="motor-control">
+                <h2>Motor 3</h2>
+                <div class="control-group">
+                    <label>Speed: <span id="speed3-value">0</span>%</label>
+                    <input type="range" id="speed3" min="0" max="100" value="0" class="slider">
+                </div>
+                <div class="control-group">
+                    <label>Direction:</label>
+                    <div class="direction-control">
+                        <button class="dir-btn" data-motor="3" data-dir="0">◄ CCW</button>
+                        <button class="dir-btn active" data-motor="3" data-dir="1">CW ►</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Brake: <span id="brake3-value">100</span>%</label>
+                    <input type="range" id="brake3" min="0" max="100" value="100" class="slider">
+                </div>
+            </div>
+            
+            <div class="emergency-stop">
+                <button id="stop-all-btn" class="stop-btn">STOP ALL</button>
+            </div>
+        </div>
+        
+        <div id="waiting-panel" class="waiting-panel">
+            <h2>Waiting in Queue</h2>
+            <p id="queue-position">Position: -</p>
+            <p id="queue-message">Waiting for your turn...</p>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+PLATTER CONTROLLER - Project Summary
+====================================
+
+Project Structure:
+-----------------
+
+Core Application Files:
+  app.py                    - Main Flask application with WebSocket handling
+  motor_controller.py       - GPIO control for 3 motors using pigpio
+  queue_manager.py          - User queue and timeout management
+  config.py                 - Configuration settings
+
+Web Interface:
+  templates/index.html      - Main HTML interface
+  static/style.css          - Styling and responsive design
+  static/script.js          - Client-side WebSocket and UI control
+
+Setup & Deployment:
+  requirements.txt          - Python package dependencies
+  deploy.sh                 - Automated deployment script
+  start.sh                  - Manual start script
+  INSTALL.txt              - Detailed installation instructions
+  platter-controller.service - Systemd service file for auto-start
+
+Testing & Utilities:
+  test_gpio.py             - Hardware test script for motor connections
+  .gitignore               - Git version control ignore patterns
+
+GPIO Pin Assignments (Pi Zero 2 W):
+-----------------------------------
+Motor 1: Speed=GPIO18, Brake=GPIO23, Direction=GPIO24
+Motor 2: Speed=GPIO13, Brake=GPIO25, Direction=GPIO8
+Motor 3: Speed=GPIO12, Brake=GPIO16, Direction=GPIO7
+
+Key Features:
+-------------
+✓ Real-time WebSocket control
+✓ Queue system with automatic timeout (2 minutes when others waiting)
+✓ Up to 3 users can queue simultaneously
+✓ Responsive web interface works on mobile/tablet/desktop
+✓ Emergency stop button
+✓ Independent control of each motor's speed, direction, and brake
+✓ Visual timer display
+✓ Hardware PWM for smooth motor control
+
+Quick Start:
+-----------
+1. Run: chmod +x deploy.sh && ./deploy.sh
+2. Access: http://<pi-ip>:5000
+
+OR manually:
+1. Install dependencies: pip install -r requirements.txt
+2. Start pigpio daemon: sudo pigpiod
+3. Run application: python3 app.py
+
+System Requirements:
+-------------------
+- Raspberry Pi Zero 2 W
+- Python 3.7+
+- pigpio daemon
+- Network connectivity
+
+Technical Details:
+-----------------
+- Framework: Flask with Flask-SocketIO
+- GPIO Library: pigpio (hardware PWM support)
+- PWM Frequency: 1000 Hz
+- PWM Resolution: 8-bit (0-255)
+- Server Port: 5000
+- Queue Timeout: 120 seconds (configurable)
+
+Security Notes:
+--------------
+- No authentication implemented (suitable for local network/art installation)
+- One controller at a time enforced by queue system
+- Emergency stop available to all users with control
+- Motors auto-stop on disconnect
+
+Troubleshooting:
+---------------
+- Check pigpiod: ps aux | grep pigpiod
+- Test hardware: python3 test_gpio.py
+- View logs: sudo journalctl -u platter-controller -f
+- Check GPIO connections if motors don't respond
+- Verify network connectivity if web interface unavailable
+
+License: Use as needed for your art installation!
