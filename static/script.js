@@ -225,66 +225,73 @@ motors.forEach(motorId => {
     // Speed slider
     const speedSlider = document.getElementById(`speed${motorId}`);
     const speedValue = document.getElementById(`speed${motorId}-value`);
-    
-    speedSlider.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
-        speedValue.textContent = value;
-        motorState[motorId].speed = value;
-        // Debounced send for speed changes
-        debouncedSend[motorId]();
-    });
+    if (speedSlider && speedValue) {
+        speedSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            speedValue.textContent = value;
+            motorState[motorId].speed = value;
+            // Debounced send for speed changes
+            debouncedSend[motorId]();
+        });
+    }
 
     // Brake hold button
     const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
-    const press = (e) => {
-        e.preventDefault();
-        brakeBtn.setAttribute('aria-pressed', 'true');
-        motorState[motorId].brake = 100; // apply brake fully while held
-        sendMotorControl(motorId); // send immediately for responsiveness
-    };
-    const release = (e) => {
-        e.preventDefault();
-        brakeBtn.setAttribute('aria-pressed', 'false');
-        motorState[motorId].brake = 0; // release brake when not held
-        sendMotorControl(motorId);
-    };
-    // Pointer events (works for mouse + touch)
-    brakeBtn.addEventListener('pointerdown', press);
-    brakeBtn.addEventListener('pointerup', release);
-    brakeBtn.addEventListener('pointerleave', release);
-    brakeBtn.addEventListener('pointercancel', release);
-    brakeBtn.addEventListener('lostpointercapture', release);
-    // Keyboard accessibility (Space/Enter)
-    brakeBtn.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' || e.code === 'Enter') press(e);
-    });
-    brakeBtn.addEventListener('keyup', (e) => {
-        if (e.code === 'Space' || e.code === 'Enter') release(e);
-    });
+    if (brakeBtn) {
+        const press = (e) => {
+            e.preventDefault();
+            brakeBtn.setAttribute('aria-pressed', 'true');
+            motorState[motorId].brake = 100; // apply brake fully while held
+            sendMotorControl(motorId); // send immediately for responsiveness
+        };
+        const release = (e) => {
+            e.preventDefault();
+            brakeBtn.setAttribute('aria-pressed', 'false');
+            motorState[motorId].brake = 0; // release brake when not held
+            sendMotorControl(motorId);
+        };
+        // Pointer events (works for mouse + touch)
+        brakeBtn.addEventListener('pointerdown', press);
+        brakeBtn.addEventListener('pointerup', release);
+        brakeBtn.addEventListener('pointerleave', release);
+        brakeBtn.addEventListener('pointercancel', release);
+        brakeBtn.addEventListener('lostpointercapture', release);
+        // Keyboard accessibility (Space/Enter)
+        brakeBtn.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'Enter') press(e);
+        });
+        brakeBtn.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'Enter') release(e);
+        });
+    }
     
     // Direction buttons
     const dirButtons = document.querySelectorAll(`[data-motor="${motorId}"]`);
-    dirButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const direction = parseInt(btn.dataset.dir);
-            
-            // Update button states
-            dirButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Update state and send
-            motorState[motorId].direction = direction;
-            sendMotorControl(motorId);
+    if (dirButtons && dirButtons.length) {
+        dirButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const direction = parseInt(btn.dataset.dir);
+                
+                // Update button states
+                dirButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update state and send
+                motorState[motorId].direction = direction;
+                sendMotorControl(motorId);
+            });
         });
-    });
+    }
 });
 
 // Stop all button
 document.getElementById('stop-all-btn').addEventListener('click', () => {
     // Reset all sliders
     motors.forEach(motorId => {
-        document.getElementById(`speed${motorId}`).value = 0;
-        document.getElementById(`speed${motorId}-value`).textContent = 0;
+    const s = document.getElementById(`speed${motorId}`);
+    const sv = document.getElementById(`speed${motorId}-value`);
+    if (s) s.value = 0;
+    if (sv) sv.textContent = 0;
         
         motorState[motorId].speed = 0;
     motorState[motorId].brake = 0;
@@ -300,3 +307,17 @@ updateUIState();
 
 // Now connect after handlers are registered
 socket.connect();
+
+// Fallback: if still not connected after 5s, update status and attempt reconnect
+setTimeout(() => {
+    try {
+        if (!socket.connected) {
+            statusMessage.textContent = 'Connection failed';
+            statusMessage.style.color = '#dc3545';
+            // Attempt a reconnect once
+            socket.connect();
+        }
+    } catch (e) {
+        console.error('Connection watchdog error:', e);
+    }
+}, 5000);
