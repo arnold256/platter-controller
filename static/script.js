@@ -34,10 +34,15 @@ function debounce(fn, wait) {
 }
 
 // Initialize Socket.IO client FIRST (no auto-connect yet)
-// Use long-polling as primary transport for Cloudflare reverse proxy compatibility
+// Force long-polling for Cloudflare reverse proxy compatibility (WebSocket blocked)
 const socket = io({
     autoConnect: false,
-    transports: ['polling', 'websocket']
+    transports: ['polling'],
+    reconnection: true,
+    reconnectionDelay: 100,
+    reconnectionDelayMax: 3000,
+    reconnectionAttempts: Infinity,
+    timeout: 20000
 });
 
 // Socket event handlers

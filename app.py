@@ -9,16 +9,24 @@ import time
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 # Use threading async mode for compatibility on Windows and enable verbose logs
-# Optimize for Cloudflare reverse proxy: prefer polling over websocket
+# Optimize for Cloudflare reverse proxy: force polling, add compatibility headers
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode='threading',
     logger=True,
     engineio_logger=True,
-    ping_timeout=60,
-    ping_interval=25,
+    ping_timeout=120,
+    ping_interval=30,
 )
+
+# Add Cloudflare-friendly headers to all responses
+@app.after_request
+def add_cf_headers(response):
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 motor_controller = MotorController()
 queue_manager = QueueManager(timeout_seconds=120)
