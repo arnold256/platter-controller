@@ -162,12 +162,11 @@ class MotorController:
             raise
 
         # Apply brake AFTER speed PWM is set
-        # Brake GPIO level: when brake is ON, we RELEASE the brake (inactive)
-        # and let the PWM provide strong braking force
+        # Brake GPIO level: when brake is ON, APPLY brake (active level)
         if brake_is_applied:
-            level = 1 if config.BRAKE_ACTIVE_LOW else 0  # RELEASE brake (inactive level)
-        else:
             level = 0 if config.BRAKE_ACTIVE_LOW else 1  # APPLY brake (active level)
+        else:
+            level = 1 if config.BRAKE_ACTIVE_LOW else 0  # RELEASE brake (inactive level)
         
         try:
             self.pi.write(pins['brake'], level)
@@ -183,9 +182,9 @@ class MotorController:
         
         pins = self.motors[motor_id]
         self.pi.set_PWM_dutycycle(pins['speed'], 0)
-        # Apply brake (inactive when stopped)
-        released = 1 if config.BRAKE_ACTIVE_LOW else 0
-        self.pi.write(pins['brake'], released)
+        # Apply brake (active level)
+        applied = 0 if config.BRAKE_ACTIVE_LOW else 1
+        self.pi.write(pins['brake'], applied)
     
     def stop_all(self):
         """Stop all motors"""
