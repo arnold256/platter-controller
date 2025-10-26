@@ -48,42 +48,12 @@ import config
 
 class MotorController:
     def __init__(self):
-        # GPIO Pin assignments
-        # Motor 1
-        self.MOTOR1_SPEED = 18    # Hardware PWM
-        self.MOTOR1_BRAKE = 23
-        self.MOTOR1_DIR = 24
-        
-        # Motor 2
-        self.MOTOR2_SPEED = 13    # Hardware PWM
-        self.MOTOR2_BRAKE = 25
-        self.MOTOR2_DIR = 8
-        
-        # Motor 3
-        self.MOTOR3_SPEED = 12    # Hardware PWM
-        self.MOTOR3_BRAKE = 16
-        self.MOTOR3_DIR = 7
-        
+        # GPIO Pin assignments - can be moved to config.py if needed
         self.motors = {
-            1: {
-                'speed': self.MOTOR1_SPEED,
-                'brake': self.MOTOR1_BRAKE,
-                'direction': self.MOTOR1_DIR
-            },
-            2: {
-                'speed': self.MOTOR2_SPEED,
-                'brake': self.MOTOR2_BRAKE,
-                'direction': self.MOTOR2_DIR
-            },
-            3: {
-                'speed': self.MOTOR3_SPEED,
-                'brake': self.MOTOR3_BRAKE,
-                'direction': self.MOTOR3_DIR
-            }
+            1: {'speed': 18, 'brake': 23, 'direction': 24},
+            2: {'speed': 13, 'brake': 25, 'direction': 8},
+            3: {'speed': 12, 'brake': 16, 'direction': 7}
         }
-        
-        # Track the requested speed before brake is applied (to restore after brake release)
-        self.pre_brake_speed = {1: 0, 2: 0, 3: 0}
         
         # On Linux (Pi hardware), require real pigpio module
         if sys.platform.startswith('linux') and not _PIGPIO_AVAILABLE:
@@ -130,22 +100,12 @@ class MotorController:
             # Speed pin uses PWM
             self.pi.set_PWM_frequency(pins['speed'], config.PWM_FREQUENCY)
             self.pi.set_PWM_range(pins['speed'], config.PWM_RANGE)
-
-            # Brake pin: PWM or digital ON/OFF
-            if config.BRAKE_IS_PWM:
-                self.pi.set_PWM_frequency(pins['brake'], config.PWM_FREQUENCY)
-                self.pi.set_PWM_range(pins['brake'], config.PWM_RANGE)
-            else:
-                self.pi.set_mode(pins['brake'], pigpio.OUTPUT)
-            
-            # Initialize to stopped state (speed=0, apply full brake)
             self.pi.set_PWM_dutycycle(pins['speed'], 0)
-            if config.BRAKE_IS_PWM:
-                self.pi.set_PWM_dutycycle(pins['brake'], 0)
-            else:
-                # Digital brake: apply
-                applied = 0 if config.BRAKE_ACTIVE_LOW else 1
-                self.pi.write(pins['brake'], applied)
+            
+            # Brake pin: digital ON/OFF only
+            self.pi.set_mode(pins['brake'], pigpio.OUTPUT)
+            applied = 0 if config.BRAKE_ACTIVE_LOW else 1
+            self.pi.write(pins['brake'], applied)
     
     def set_motor(self, motor_id, speed, direction, brake):
         """
@@ -153,9 +113,13 @@ class MotorController:
         
         Args:
             motor_id: 1, 2, or 3
-            speed: 0-100 (percentage) - the user's requested speed
+            speed: 0-100 (percentage) - requested speed from slider
             direction: 0 or 1
             brake: 0-100 (percentage, >= threshold means brake applied)
+        
+        Logic:
+        - If brake is applied: set speed PWM to PWM_SPEED_MAX (full braking force), activate brake GPIO
+        - If brake is released: set speed PWM to the requested speed, release brake GPIO
         """
         if motor_id not in self.motors:
             return
@@ -167,7 +131,7 @@ class MotorController:
         brake = max(0, min(100, brake))
         direction = 1 if direction else 0
 
-        # Helper to map a UI value 0-100 to duty in 0..PWM_RANGE using raw [min,max]
+        # Helper to map a UI value 0-100 to duty in 0..PWM_RANGE
         def _map(ui_value, duty_min, duty_max):
             ui_clamped = max(0, min(100, ui_value)) / 100.0
             dmin = max(0, min(config.PWM_RANGE, duty_min))
@@ -177,29 +141,15 @@ class MotorController:
         # Check if brake is being applied
         brake_is_applied = brake >= config.BRAKE_APPLY_THRESHOLD
         
-        # Debug log
-        print(f"set_motor m{motor_id}: speed={speed}, brake={brake}, brake_is_applied={brake_is_applied}, pre_brake_speed={self.pre_brake_speed[motor_id]}", flush=True)
-        
-        # When brake is NOT applied, remember the speed for later restoration
-        if not brake_is_applied:
-            self.pre_brake_speed[motor_id] = speed
-        
-        # Determine effective speed:
-        # - If brake is applied: use 100% of PWM_SPEED_MAX for maximum braking force
-        # - If brake is not applied: use the requested speed (which we just saved)
+        # Determine speed PWM based on brake state
         if brake_is_applied:
-            speed_pwm = config.PWM_SPEED_MAX  # Full PWM_SPEED_MAX (178 for 70% cap)
+            # Brake ON: use maximum speed for strong braking
+            speed_pwm = config.PWM_SPEED_MAX
+            print(f"set_motor m{motor_id}: BRAKE ON, speed_pwm={speed_pwm}", flush=True)
         else:
-            effective_speed = self.pre_brake_speed[motor_id]
-            speed_pwm = _map(effective_speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
-        
-        print(f"  effective_speed={effective_speed}, speed_pwm={speed_pwm}", flush=True)
-        
-        # Brake value
-        if config.BRAKE_IS_PWM:
-            brake_pwm = _map(brake, config.PWM_BRAKE_MIN, config.PWM_BRAKE_MAX)
-        else:
-            brake_pwm = None
+            # Brake OFF: use the requested speed from slider
+            speed_pwm = _map(speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+            print(f"set_motor m{motor_id}: BRAKE OFF, speed={speed}, speed_pwm={speed_pwm}", flush=True)
 
         # Set direction
         self.pi.write(pins['direction'], direction)
@@ -211,22 +161,19 @@ class MotorController:
             print(f"GPIO error(speed) m{motor_id} pin={pins['speed']} duty={speed_pwm}: {e}", flush=True)
             raise
 
-        # Apply brake
-        if config.BRAKE_IS_PWM:
-            try:
-                self.pi.set_PWM_dutycycle(pins['brake'], brake_pwm)
-            except Exception as e:
-                print(f"GPIO error(brake PWM) m{motor_id} pin={pins['brake']} duty={brake_pwm}: {e}", flush=True)
-                raise
+        # Apply brake: digital ON/OFF only
+        # Brake GPIO level: 0=applied (if BRAKE_ACTIVE_LOW), 1=released (if BRAKE_ACTIVE_LOW)
+        if brake_is_applied:
+            level = 0 if config.BRAKE_ACTIVE_LOW else 1  # Active level
         else:
-            # Digital brake: ON if UI >= threshold, else OFF (release)
-            on = 1 if brake_is_applied else 0
-            level = (0 if config.BRAKE_ACTIVE_LOW else 1) if on else (1 if config.BRAKE_ACTIVE_LOW else 0)
-            try:
-                self.pi.write(pins['brake'], level)
-            except Exception as e:
-                print(f"GPIO error(brake DIO) m{motor_id} pin={pins['brake']} level={level}: {e}", flush=True)
-                raise
+            level = 1 if config.BRAKE_ACTIVE_LOW else 0  # Inactive level
+        
+        try:
+            self.pi.write(pins['brake'], level)
+            print(f"  brake GPIO pin={pins['brake']} level={level}", flush=True)
+        except Exception as e:
+            print(f"GPIO error(brake) m{motor_id} pin={pins['brake']} level={level}: {e}", flush=True)
+            raise
     
     def stop_motor(self, motor_id):
         """Stop a specific motor"""
@@ -235,11 +182,9 @@ class MotorController:
         
         pins = self.motors[motor_id]
         self.pi.set_PWM_dutycycle(pins['speed'], 0)
-        if config.BRAKE_IS_PWM:
-            self.pi.set_PWM_dutycycle(pins['brake'], 0)  # Full brake (PWM)
-        else:
-            applied = 0 if config.BRAKE_ACTIVE_LOW else 1
-            self.pi.write(pins['brake'], applied)
+        # Apply full brake
+        applied = 0 if config.BRAKE_ACTIVE_LOW else 1
+        self.pi.write(pins['brake'], applied)
     
     def stop_all(self):
         """Stop all motors"""
@@ -250,13 +195,6 @@ class MotorController:
         """Cleanup GPIO on shutdown"""
         try:
             self.stop_all()
-            # Release all pins
-            for pins in self.motors.values():
-                try:
-                    self.pi.set_PWM_dutycycle(pins['speed'], 0)
-                    self.pi.set_PWM_dutycycle(pins['brake'], 0)
-                except Exception:
-                    pass
         except Exception:
             pass
         finally:
