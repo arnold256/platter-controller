@@ -131,7 +131,9 @@ def handle_motor_control(data):
     print(f"CLIENT_ID: {client_id}", file=sys.stderr, flush=True)
     
     if not queue_manager.is_controlling(client_id):
-        print(f"motor_control blocked (no control) from {client_id}: {data}", flush=True)
+        is_controlling = queue_manager.is_controlling(client_id)
+        current_controller = queue_manager.get_current_controller()
+        print(f"motor_control BLOCKED: client_id={client_id}, is_controlling={is_controlling}, current_controller={current_controller}", flush=True)
         emit('error', {'message': 'You do not have control'})
         return
     
@@ -212,6 +214,7 @@ def check_timeouts():
             # Give control to next user
             next_user = queue_manager.get_current_controller()
             if next_user:
+                print(f"Granting control to next user: {next_user}", flush=True)
                 socketio.emit('control_granted', {
                     'message': 'You have control'
                 }, room=next_user)
@@ -221,6 +224,8 @@ def check_timeouts():
                     'position': 0,
                     'queue_length': queue_manager.get_queue_length()
                 }, room=next_user)
+            else:
+                print(f"No next user in queue", flush=True)
             
             # Update all clients
             socketio.emit('motor_state', { 'state': current_motor_state })
