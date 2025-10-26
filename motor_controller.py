@@ -185,10 +185,13 @@ class MotorController:
             self.pre_brake_speed[motor_id] = speed
         
         # Determine effective speed:
-        # - If brake is applied: use 100% for strong braking
+        # - If brake is applied: use 100% of PWM_SPEED_MAX for maximum braking force
         # - If brake is not applied: use the requested speed (which we just saved)
-        effective_speed = 100 if brake_is_applied else self.pre_brake_speed[motor_id]
-        speed_pwm = _map(effective_speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+        if brake_is_applied:
+            speed_pwm = config.PWM_SPEED_MAX  # Full PWM_SPEED_MAX (178 for 70% cap)
+        else:
+            effective_speed = self.pre_brake_speed[motor_id]
+            speed_pwm = _map(effective_speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
         
         print(f"  effective_speed={effective_speed}, speed_pwm={speed_pwm}", flush=True)
         
