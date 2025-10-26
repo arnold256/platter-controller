@@ -33,174 +33,8 @@ function debounce(fn, wait) {
     };
 }
 
-// Socket will be initialized once the Socket.IO library is confirmed loaded
-let socket = null;
-
-function initSocketIfReady() {
-    if (typeof window.io === 'undefined') {
-        // Library not yet loaded; try again shortly
-        return false;
-    }
-    if (socket) return true;
-    // Initialize Socket.IO client (no auto-connect yet)
-    // Force long-polling transport for compatibility with threading server on the Pi
-    socket = io({
-        autoConnect: false,
-        transports: ['polling'],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 500,
-        timeout: 10000
-    });
-
-    // Register socket event handlers
-    socket.on('connect', () => {
-        console.log('Connected to server');
-        statusMessage.textContent = 'Connected';
-        statusMessage.style.color = '#666';
-    });
-
-    socket.on('connect_error', (err) => {
-        console.error('Socket connect_error:', err);
-        statusMessage.textContent = 'Connection failed';
-        statusMessage.style.color = '#dc3545';
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Disconnected from server');
-        statusMessage.textContent = 'Disconnected';
-        isControlling = false;
-        updateUIState();
-    });
-
-    socket.on('control_granted', (data) => {
-        console.log('Control granted:', data);
-        isControlling = true;
-        controlStartTime = Date.now();
-        updateUIState();
-        // Timer will be started based on hasQueueWaiting status in startTimer()
-        startTimer();
-    });
-
-    socket.on('queued', (data) => {
-        console.log('Queued:', data);
-        isControlling = false;
-        queuePosition.textContent = `Position: ${data.position}`;
-        updateUIState();
-    });
-
-    socket.on('status_update', (data) => {
-        console.log('Status update:', data);
-        isControlling = data.controlling;
-        hasQueueWaiting = data.queue_length > 1;
-        
-        if (data.controlling) {
-            if (controlStartTime === null) {
-                controlStartTime = Date.now();
-            }
-            startTimer();
-            updateUIState();  // Update UI state to enable controls
-        } else {
-            stopTimer();
-            queuePosition.textContent = `Position: ${data.position}`;
-            updateUIState();  // Update UI state to disable controls
-        }
-    });
-
-    socket.on('queue_update', (data) => {
-        hasQueueWaiting = data.queue_length > 1;
-        queueInfo.textContent = `Queue: ${data.queue_length}`;
-        
-        if (isControlling) {
-            if (data.queue_length > 1) {
-                startTimer();
-            } else {
-                stopTimer();
-                timerDisplay.textContent = 'No time limit';
-            }
-        }
-    });
-
-    socket.on('timeout', (data) => {
-        console.log('Timeout:', data);
-        alert('Your time is up! You have been moved to the back of the queue.');
-        isControlling = false;
-        stopTimer();
-        updateUIState();
-    });
-
-    socket.on('motor_updated', (data) => {
-        console.log('Motor updated:', data);
-        const { motor_id, speed, direction, brake } = data;
-        // Update local view so spectators see live state
-        if (motors.includes(motor_id)) {
-            motorState[motor_id].speed = speed;
-            motorState[motor_id].direction = direction;
-            motorState[motor_id].brake = brake;
-            // Reflect into controls
-            const speedSlider = document.getElementById(`speed${motor_id}`);
-            const speedValue = document.getElementById(`speed${motor_id}-value`);
-            if (speedSlider) speedSlider.value = speed;
-            if (speedValue) speedValue.textContent = speed;
-            const dirButtons = document.querySelectorAll(`[data-motor="${motor_id}"]`);
-            dirButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.dir) === direction));
-            const brakeBtn = document.getElementById(`brakeBtn${motor_id}`);
-            if (brakeBtn) brakeBtn.setAttribute('aria-pressed', String(brake >= 1));
-        }
-    });
-
-    socket.on('all_stopped', () => {
-        console.log('All motors stopped');
-    });
-
-    // Receive full state snapshot (on connect and stop-all/timeout)
-    socket.on('motor_state', (payload) => {
-        const state = payload && payload.state ? payload.state : {};
-        motors.forEach(motorId => {
-            const s = state[motorId];
-            if (!s) return;
-            motorState[motorId] = { ...motorState[motorId], ...s };
-            // Update UI elements
-            const speedSlider = document.getElementById(`speed${motorId}`);
-            const speedValue = document.getElementById(`speed${motorId}-value`);
-            if (speedSlider) speedSlider.value = s.speed;
-            if (speedValue) speedValue.textContent = s.speed;
-            const dirButtons = document.querySelectorAll(`[data-motor="${motorId}"]`);
-            dirButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.dir) === s.direction));
-            const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
-            if (brakeBtn) brakeBtn.setAttribute('aria-pressed', String(s.brake >= 1));
-        });
-    });
-
-    socket.on('reconnect_attempt', (n) => {
-        statusMessage.textContent = 'Reconnecting…';
-        statusMessage.style.color = '#ffc107';
-    });
-
-    socket.on('reconnect', () => {
-        statusMessage.textContent = 'Connected';
-        statusMessage.style.color = '#666';
-    });
-
-    // Now connect after handlers are registered
-    socket.connect();
-
-    // Fallback: if still not connected after 10s, update status and attempt reconnect
-    setTimeout(() => {
-        try {
-            if (!socket.connected) {
-                statusMessage.textContent = 'Connection failed';
-                statusMessage.style.color = '#dc3545';
-                // Attempt a reconnect once
-                socket.connect();
-            }
-        } catch (e) {
-            console.error('Connection watchdog error:', e);
-        }
-    }, 10000);
-
-    return true;
-}
+// Initialize Socket.IO client FIRST (no auto-connect yet)
+const socket = io({ autoConnect: false });
 
 // Socket event handlers
 socket.on('connect', () => {
@@ -215,21 +49,115 @@ socket.on('connect_error', (err) => {
     statusMessage.style.color = '#dc3545';
 });
 
-socket.on('reconnect_attempt', (n) => {
-    statusMessage.textContent = 'Reconnecting…';
-    statusMessage.style.color = '#ffc107';
-});
-
-socket.on('reconnect', () => {
-    statusMessage.textContent = 'Connected';
-    statusMessage.style.color = '#666';
-});
-
 socket.on('disconnect', () => {
     console.log('Disconnected from server');
     statusMessage.textContent = 'Disconnected';
     isControlling = false;
     updateUIState();
+});
+
+socket.on('control_granted', (data) => {
+    console.log('Control granted:', data);
+    isControlling = true;
+    controlStartTime = Date.now();
+    updateUIState();
+    // Timer will be started based on hasQueueWaiting status in startTimer()
+    startTimer();
+});
+
+socket.on('queued', (data) => {
+    console.log('Queued:', data);
+    isControlling = false;
+    queuePosition.textContent = `Position: ${data.position}`;
+    updateUIState();
+});
+
+socket.on('status_update', (data) => {
+    console.log('Status update:', data);
+    isControlling = data.controlling;
+    hasQueueWaiting = data.queue_length > 1;
+    
+    if (data.controlling) {
+        if (controlStartTime === null) {
+            controlStartTime = Date.now();
+        }
+        startTimer();
+        updateUIState();  // Update UI state to enable controls
+    } else {
+        stopTimer();
+        queuePosition.textContent = `Position: ${data.position}`;
+        updateUIState();  // Update UI state to disable controls
+    }
+});
+
+socket.on('queue_update', (data) => {
+    hasQueueWaiting = data.queue_length > 1;
+    queueInfo.textContent = `Queue: ${data.queue_length}`;
+    
+    if (isControlling) {
+        if (data.queue_length > 1) {
+            startTimer();
+        } else {
+            stopTimer();
+            timerDisplay.textContent = 'No time limit';
+        }
+    }
+});
+
+socket.on('timeout', (data) => {
+    console.log('Timeout:', data);
+    alert('Your time is up! You have been moved to the back of the queue.');
+    isControlling = false;
+    stopTimer();
+    updateUIState();
+});
+
+socket.on('motor_updated', (data) => {
+    console.log('Motor updated:', data);
+    const { motor_id, speed, direction, brake } = data;
+    // Update local view so spectators see live state
+    if (motors.includes(motor_id)) {
+        motorState[motor_id].speed = speed;
+        motorState[motor_id].direction = direction;
+        motorState[motor_id].brake = brake;
+        // Reflect into controls
+        const speedSlider = document.getElementById(`speed${motor_id}`);
+        const speedValue = document.getElementById(`speed${motor_id}-value`);
+        if (speedSlider) speedSlider.value = speed;
+        if (speedValue) speedValue.textContent = speed;
+        const dirButtons = document.querySelectorAll(`[data-motor="${motor_id}"]`);
+        dirButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.dir) === direction));
+        const brakeBtn = document.getElementById(`brakeBtn${motor_id}`);
+        if (brakeBtn) brakeBtn.setAttribute('aria-pressed', String(brake >= 1));
+    }
+});
+
+socket.on('all_stopped', () => {
+    console.log('All motors stopped');
+});
+
+socket.on('error', (data) => {
+    console.error('Error:', data.message);
+    alert(data.message);
+});
+
+// Receive full state snapshot (on connect and stop-all/timeout)
+socket.on('motor_state', (payload) => {
+    const state = payload && payload.state ? payload.state : {};
+    motors.forEach(motorId => {
+        const s = state[motorId];
+        if (!s) return;
+        motorState[motorId] = { ...motorState[motorId], ...s };
+        // Update UI elements
+        const speedSlider = document.getElementById(`speed${motorId}`);
+        const speedValue = document.getElementById(`speed${motorId}-value`);
+        if (speedSlider) speedSlider.value = s.speed;
+        if (speedValue) speedValue.textContent = s.speed;
+        const dirButtons = document.querySelectorAll(`[data-motor="${motorId}"]`);
+        dirButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.dir) === s.direction));
+        const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
+        if (brakeBtn) brakeBtn.setAttribute('aria-pressed', String(s.brake >= 1));
+    });
 });
 
 socket.on('control_granted', (data) => {
@@ -464,15 +392,15 @@ motors.forEach(motorId => {
 document.getElementById('stop-all-btn').addEventListener('click', () => {
     // Reset all sliders
     motors.forEach(motorId => {
-    const s = document.getElementById(`speed${motorId}`);
-    const sv = document.getElementById(`speed${motorId}-value`);
-    if (s) s.value = 0;
-    if (sv) sv.textContent = 0;
+        const s = document.getElementById(`speed${motorId}`);
+        const sv = document.getElementById(`speed${motorId}-value`);
+        if (s) s.value = 0;
+        if (sv) sv.textContent = 0;
         
         motorState[motorId].speed = 0;
-    motorState[motorId].brake = 0;
-    const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
-    if (brakeBtn) brakeBtn.setAttribute('aria-pressed', 'false');
+        motorState[motorId].brake = 0;
+        const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
+        if (brakeBtn) brakeBtn.setAttribute('aria-pressed', 'false');
     });
     
     socket.emit('stop_all');
@@ -481,27 +409,5 @@ document.getElementById('stop-all-btn').addEventListener('click', () => {
 // Initialize UI
 updateUIState();
 
-// Defer socket init until Socket.IO client library is available
-(function waitForSocketIOLibrary(attemptsLeft = 50) { // ~10s total at 200ms interval
-    if (initSocketIfReady()) return;
-    if (attemptsLeft <= 0) {
-        statusMessage.textContent = 'Socket library not loaded';
-        statusMessage.style.color = '#dc3545';
-        return;
-    }
-    setTimeout(() => waitForSocketIOLibrary(attemptsLeft - 1), 200);
-})();
-
-// Fallback: if still not connected after 5s, update status and attempt reconnect
-setTimeout(() => {
-    try {
-        if (!socket.connected) {
-            statusMessage.textContent = 'Connection failed';
-            statusMessage.style.color = '#dc3545';
-            // Attempt a reconnect once
-            socket.connect();
-        }
-    } catch (e) {
-        console.error('Connection watchdog error:', e);
-    }
-}, 5000);
+// Now connect after handlers are registered
+socket.connect();
