@@ -150,6 +150,9 @@ h1 {
     font-size: 1em;
     font-weight: bold;
     transition: all 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .dir-btn:hover {
@@ -178,6 +181,9 @@ h1 {
     font-size: 1em;
     font-weight: bold;
     transition: all 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .brake-btn[aria-pressed="true"],
