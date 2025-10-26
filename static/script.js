@@ -35,7 +35,15 @@ function debounce(fn, wait) {
 }
 
 // Initialize Socket.IO client FIRST (no auto-connect yet)
-const socket = io({ autoConnect: false });
+// Cloudflare compatibility: use polling as primary transport since WebSocket may not work behind proxy
+const socket = io({ 
+    autoConnect: false,
+    transports: ['polling', 'websocket'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity
+});
 
 // Socket event handlers
 socket.on('connect', () => {

@@ -8,6 +8,18 @@ import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
+
+# Add CORS and cache headers
+@app.after_request
+def add_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, public, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 # Use threading async mode for compatibility on Windows and enable verbose logs
 socketio = SocketIO(
     app,
@@ -15,6 +27,11 @@ socketio = SocketIO(
     async_mode='threading',
     logger=True,
     engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25,
+    engineio_logger_level='INFO',
+    # Cloudflare compatibility: use polling as primary since WebSocket may not work
+    transports=['polling', 'websocket'],
 )
 
 motor_controller = MotorController()
