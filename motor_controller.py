@@ -82,6 +82,9 @@ class MotorController:
             }
         }
         
+        # Track the requested speed before brake is applied (to restore after brake release)
+        self.pre_brake_speed = {1: 0, 2: 0, 3: 0}
+        
         # On Linux (Pi hardware), require real pigpio module
         if sys.platform.startswith('linux') and not _PIGPIO_AVAILABLE:
             raise Exception("pigpio Python module not found. Install with: sudo apt-get install -y python3-pigpio pigpio")
@@ -152,7 +155,7 @@ class MotorController:
             motor_id: 1, 2, or 3
             speed: 0-100 (percentage)
             direction: 0 or 1
-            brake: 0-100 (percentage)
+            brake: 0-100 (percentage, >= threshold means brake applied)
         """
         if motor_id not in self.motors:
             return
@@ -171,7 +174,18 @@ class MotorController:
             dmax = max(0, min(config.PWM_RANGE, duty_max))
             return int(round(dmin + (dmax - dmin) * ui_clamped))
 
-        speed_pwm = _map(speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+        # Check if brake is being applied
+        brake_is_applied = brake >= config.BRAKE_APPLY_THRESHOLD
+        
+        # When brake is applied, boost speed to 100%; when released, restore previous speed
+        if brake_is_applied:
+            # Brake being applied: use 100% speed (full power to brakes)
+            self.pre_brake_speed[motor_id] = speed  # Remember the current speed
+            speed_pwm = _map(100, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+        else:
+            # Brake released: restore to the speed the user requested before brake was applied
+            speed_pwm = _map(self.pre_brake_speed[motor_id], config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+        
         # Brake value
         if config.BRAKE_IS_PWM:
             brake_pwm = _map(brake, config.PWM_BRAKE_MIN, config.PWM_BRAKE_MAX)
@@ -182,7 +196,6 @@ class MotorController:
         self.pi.write(pins['direction'], direction)
 
         # Apply speed PWM
-        # Debug log: uncomment if needed
         try:
             self.pi.set_PWM_dutycycle(pins['speed'], speed_pwm)
         except Exception as e:
@@ -198,7 +211,7 @@ class MotorController:
                 raise
         else:
             # Digital brake: ON if UI >= threshold, else OFF (release)
-            on = 1 if brake >= config.BRAKE_APPLY_THRESHOLD else 0
+            on = 1 if brake_is_applied else 0
             level = (0 if config.BRAKE_ACTIVE_LOW else 1) if on else (1 if config.BRAKE_ACTIVE_LOW else 0)
             try:
                 self.pi.write(pins['brake'], level)
