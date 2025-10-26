@@ -153,7 +153,7 @@ class MotorController:
         
         Args:
             motor_id: 1, 2, or 3
-            speed: 0-100 (percentage)
+            speed: 0-100 (percentage) - the user's requested speed
             direction: 0 or 1
             brake: 0-100 (percentage, >= threshold means brake applied)
         """
@@ -177,14 +177,14 @@ class MotorController:
         # Check if brake is being applied
         brake_is_applied = brake >= config.BRAKE_APPLY_THRESHOLD
         
-        # When brake is applied, boost speed to 100%; when released, restore previous speed
-        if brake_is_applied:
-            # Brake being applied: use 100% speed (full power to brakes)
-            self.pre_brake_speed[motor_id] = speed  # Remember the current speed
-            speed_pwm = _map(100, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
-        else:
-            # Brake released: restore to the speed the user requested before brake was applied
-            speed_pwm = _map(self.pre_brake_speed[motor_id], config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
+        # Always update pre_brake_speed with the current user-requested speed
+        # This way when brake is released, we restore to the correct speed
+        self.pre_brake_speed[motor_id] = speed
+        
+        # When brake is applied, use 100% speed (full power to brakes)
+        # Otherwise use the requested speed
+        effective_speed = 100 if brake_is_applied else speed
+        speed_pwm = _map(effective_speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
         
         # Brake value
         if config.BRAKE_IS_PWM:
