@@ -88,6 +88,7 @@ def handle_motor_control(data):
     client_id = request.sid
     
     if not queue_manager.is_controlling(client_id):
+        print(f"motor_control blocked (no control) from {client_id}: {data}")
         emit('error', {'message': 'You do not have control'})
         return
     
@@ -97,7 +98,13 @@ def handle_motor_control(data):
     brake = data.get('brake', 0)
     
     if motor_id in [1, 2, 3]:
-        motor_controller.set_motor(motor_id, speed, direction, brake)
+        print(f"motor_control apply m={motor_id} speed={speed} dir={direction} brake={brake}")
+        try:
+            motor_controller.set_motor(motor_id, speed, direction, brake)
+        except Exception as e:
+            print(f"motor_control error: {e}")
+            emit('error', {'message': f'Apply failed: {e}'})
+            return
         emit('motor_updated', {
             'motor_id': motor_id,
             'speed': speed,
