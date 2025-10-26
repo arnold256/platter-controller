@@ -129,12 +129,18 @@ def handle_motor_control(data):
     direction = data.get('direction', 0)
     brake = data.get('brake', 0)
     
+    print(f"motor_control received: m={motor_id} speed={speed} dir={direction} brake={brake}")
+    
     if motor_id in [1, 2, 3]:
         print(f"motor_control apply m={motor_id} speed={speed} dir={direction} brake={brake}")
         try:
+            print(f"calling motor_controller.set_motor...")
             motor_controller.set_motor(motor_id, speed, direction, brake)
+            print(f"set_motor returned successfully")
         except Exception as e:
             print(f"motor_control error: {e}")
+            import traceback
+            traceback.print_exc()
             emit('error', {'message': f'Apply failed: {e}'})
             return
         # Update server-side snapshot
