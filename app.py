@@ -9,24 +9,13 @@ import time
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 # Use threading async mode for compatibility on Windows and enable verbose logs
-# Optimize for Cloudflare reverse proxy: force polling, add compatibility headers
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode='threading',
     logger=True,
     engineio_logger=True,
-    ping_timeout=120,
-    ping_interval=30,
 )
-
-# Add Cloudflare-friendly headers to all responses
-@app.after_request
-def add_cf_headers(response):
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
 
 motor_controller = MotorController()
 queue_manager = QueueManager(timeout_seconds=120)
@@ -38,6 +27,10 @@ current_motor_state = {
     3: {"speed": 0, "direction": 1, "brake": 0},
 }
 
+# Track client session IDs to detect reconnects from same browser
+# (browser + IP combo as a rough session identifier)
+client_sessions = {}  # Stores {(ip, browser_fingerprint): last_sid}
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -45,6 +38,24 @@ def index():
 @socketio.on('connect')
 def handle_connect(auth=None):
     client_id = request.sid
+    client_ip = request.remote_addr
+    
+    # Use IP as a simple session key (on local network this works; behind proxy may need refinement)
+    session_key = client_ip
+    
+    # If this IP was previously connected, remove the old session from queue first
+    if session_key in client_sessions:
+        old_sid = client_sessions[session_key]
+        was_controlling = queue_manager.is_controlling(old_sid)
+        queue_manager.remove_user(old_sid)
+        print(f"Cleaned up old session {old_sid} for IP {client_ip}")
+        
+        if was_controlling:
+            motor_controller.stop_all()
+    
+    # Track this new session
+    client_sessions[session_key] = client_id
+    
     position = queue_manager.add_user(client_id)
     
     print(f"User {client_id} connected at position {position}")

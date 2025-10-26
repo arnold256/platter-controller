@@ -3,6 +3,7 @@ let currentDirection = {1: 1, 2: 1, 3: 1};
 let timerInterval = null;
 let controlStartTime = null;
 let hasQueueWaiting = false;
+let sessionId = null; // Track the current session ID to avoid duplicate queue adds on reconnect
 
 // DOM Elements
 const controlPanel = document.getElementById('control-panel');
@@ -34,20 +35,12 @@ function debounce(fn, wait) {
 }
 
 // Initialize Socket.IO client FIRST (no auto-connect yet)
-// Force long-polling for Cloudflare reverse proxy compatibility (WebSocket blocked)
-const socket = io({
-    autoConnect: false,
-    transports: ['polling'],
-    reconnection: true,
-    reconnectionDelay: 100,
-    reconnectionDelayMax: 3000,
-    reconnectionAttempts: Infinity,
-    timeout: 20000
-});
+const socket = io({ autoConnect: false });
 
 // Socket event handlers
 socket.on('connect', () => {
     console.log('Connected to server');
+    sessionId = socket.id;  // Capture the new session ID
     statusMessage.textContent = 'Connected';
     statusMessage.style.color = '#666';
 });
