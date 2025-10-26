@@ -16,9 +16,9 @@ const queueMessage = document.getElementById('queue-message');
 // Motor controls
 const motors = [1, 2, 3];
 const motorState = {
-    1: {speed: 0, direction: 1, brake: 100},
-    2: {speed: 0, direction: 1, brake: 100},
-    3: {speed: 0, direction: 1, brake: 100}
+    1: {speed: 0, direction: 1, brake: 0},
+    2: {speed: 0, direction: 1, brake: 0},
+    3: {speed: 0, direction: 1, brake: 0}
 };
 
 // Debounce settings
@@ -199,17 +199,33 @@ motors.forEach(motorId => {
         // Debounced send for speed changes
         debouncedSend[motorId]();
     });
-    
-    // Brake slider
-    const brakeSlider = document.getElementById(`brake${motorId}`);
-    const brakeValue = document.getElementById(`brake${motorId}-value`);
-    
-    brakeSlider.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
-        brakeValue.textContent = value;
-        motorState[motorId].brake = value;
-        // Debounced send for brake changes
-        debouncedSend[motorId]();
+
+    // Brake hold button
+    const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
+    const press = (e) => {
+        e.preventDefault();
+        brakeBtn.setAttribute('aria-pressed', 'true');
+        motorState[motorId].brake = 100; // apply brake fully while held
+        sendMotorControl(motorId); // send immediately for responsiveness
+    };
+    const release = (e) => {
+        e.preventDefault();
+        brakeBtn.setAttribute('aria-pressed', 'false');
+        motorState[motorId].brake = 0; // release brake when not held
+        sendMotorControl(motorId);
+    };
+    // Pointer events (works for mouse + touch)
+    brakeBtn.addEventListener('pointerdown', press);
+    brakeBtn.addEventListener('pointerup', release);
+    brakeBtn.addEventListener('pointerleave', release);
+    brakeBtn.addEventListener('pointercancel', release);
+    brakeBtn.addEventListener('lostpointercapture', release);
+    // Keyboard accessibility (Space/Enter)
+    brakeBtn.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'Enter') press(e);
+    });
+    brakeBtn.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.code === 'Enter') release(e);
     });
     
     // Direction buttons
@@ -235,11 +251,11 @@ document.getElementById('stop-all-btn').addEventListener('click', () => {
     motors.forEach(motorId => {
         document.getElementById(`speed${motorId}`).value = 0;
         document.getElementById(`speed${motorId}-value`).textContent = 0;
-        document.getElementById(`brake${motorId}`).value = 100;
-        document.getElementById(`brake${motorId}-value`).textContent = 100;
         
         motorState[motorId].speed = 0;
-        motorState[motorId].brake = 100;
+    motorState[motorId].brake = 0;
+    const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
+    if (brakeBtn) brakeBtn.setAttribute('aria-pressed', 'false');
     });
     
     socket.emit('stop_all');
