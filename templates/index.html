@@ -5,7 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Platter Controller</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <!-- Prefer local Socket.IO client served by the Flask-SocketIO server; fallback to CDN if unavailable -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        if (typeof window.io === 'undefined') {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.socket.io/4.5.4/socket.io.min.js';
+            document.head.appendChild(s);
+        }
+    </script>
 </head>
 <body>
     <div class="container">
