@@ -177,13 +177,14 @@ class MotorController:
         # Check if brake is being applied
         brake_is_applied = brake >= config.BRAKE_APPLY_THRESHOLD
         
-        # Always update pre_brake_speed with the current user-requested speed
-        # This way when brake is released, we restore to the correct speed
-        self.pre_brake_speed[motor_id] = speed
+        # When brake is NOT applied, remember the speed for later restoration
+        if not brake_is_applied:
+            self.pre_brake_speed[motor_id] = speed
         
-        # When brake is applied, use 100% speed (full power to brakes)
-        # Otherwise use the requested speed
-        effective_speed = 100 if brake_is_applied else speed
+        # Determine effective speed:
+        # - If brake is applied: use 100% for strong braking
+        # - If brake is not applied: use the requested speed (which we just saved)
+        effective_speed = 100 if brake_is_applied else self.pre_brake_speed[motor_id]
         speed_pwm = _map(effective_speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
         
         # Brake value
