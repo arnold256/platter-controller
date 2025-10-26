@@ -20,6 +20,13 @@ socketio = SocketIO(
 motor_controller = MotorController()
 queue_manager = QueueManager(timeout_seconds=120)
 
+# Track current motor state to keep spectators in sync
+current_motor_state = {
+    1: {"speed": 0, "direction": 1, "brake": 0},
+    2: {"speed": 0, "direction": 1, "brake": 0},
+    3: {"speed": 0, "direction": 1, "brake": 0},
+}
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -51,6 +58,9 @@ def handle_connect(auth=None):
             'queue_length': queue_manager.get_queue_length()
         })
     
+    # Send current motor state to this client so their UI reflects live values
+    emit('motor_state', { 'state': current_motor_state })
+
     # Broadcast queue update to all clients
     socketio.emit('queue_update', {
         'queue_length': queue_manager.get_queue_length()
@@ -105,7 +115,14 @@ def handle_motor_control(data):
             print(f"motor_control error: {e}")
             emit('error', {'message': f'Apply failed: {e}'})
             return
-        emit('motor_updated', {
+        # Update server-side snapshot
+        current_motor_state[motor_id] = {
+            'speed': speed,
+            'direction': direction,
+            'brake': brake
+        }
+        # Broadcast to all clients so spectators update their UI
+        socketio.emit('motor_updated', {
             'motor_id': motor_id,
             'speed': speed,
             'direction': direction,
@@ -121,7 +138,13 @@ def handle_stop_all():
         return
     
     motor_controller.stop_all()
-    emit('all_stopped', {})
+    # Reflect stopped state in snapshot: speed=0, brake=100 (applied)
+    for m in current_motor_state.keys():
+        current_motor_state[m]['speed'] = 0
+        current_motor_state[m]['brake'] = 100
+    # Broadcast to all so everyone sees stopped state
+    socketio.emit('motor_state', { 'state': current_motor_state })
+    socketio.emit('all_stopped', {})
 
 def check_timeouts():
     """Background thread to check for user timeouts"""
@@ -132,6 +155,9 @@ def check_timeouts():
         if timed_out_user:
             # Stop all motors
             motor_controller.stop_all()
+            for m in current_motor_state.keys():
+                current_motor_state[m]['speed'] = 0
+                current_motor_state[m]['brake'] = 100
             
             # Notify timed out user
             socketio.emit('timeout', {
@@ -158,6 +184,7 @@ def check_timeouts():
                 }, room=next_user)
             
             # Update all clients
+            socketio.emit('motor_state', { 'state': current_motor_state })
             socketio.emit('queue_update', {
                 'queue_length': queue_manager.get_queue_length()
             })

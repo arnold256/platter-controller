@@ -114,10 +114,44 @@ socket.on('timeout', (data) => {
 
 socket.on('motor_updated', (data) => {
     console.log('Motor updated:', data);
+    const { motor_id, speed, direction, brake } = data;
+    // Update local view so spectators see live state
+    if (motors.includes(motor_id)) {
+        motorState[motor_id].speed = speed;
+        motorState[motor_id].direction = direction;
+        motorState[motor_id].brake = brake;
+        // Reflect into controls
+        const speedSlider = document.getElementById(`speed${motor_id}`);
+        const speedValue = document.getElementById(`speed${motor_id}-value`);
+        if (speedSlider) speedSlider.value = speed;
+        if (speedValue) speedValue.textContent = speed;
+        const dirButtons = document.querySelectorAll(`[data-motor="${motor_id}"]`);
+        dirButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.dir) === direction));
+        const brakeBtn = document.getElementById(`brakeBtn${motor_id}`);
+        if (brakeBtn) brakeBtn.setAttribute('aria-pressed', String(brake >= 1));
+    }
 });
 
 socket.on('all_stopped', () => {
     console.log('All motors stopped');
+});
+// Receive full state snapshot (on connect and stop-all/timeout)
+socket.on('motor_state', (payload) => {
+    const state = payload && payload.state ? payload.state : {};
+    motors.forEach(motorId => {
+        const s = state[motorId];
+        if (!s) return;
+        motorState[motorId] = { ...motorState[motorId], ...s };
+        // Update UI elements
+        const speedSlider = document.getElementById(`speed${motorId}`);
+        const speedValue = document.getElementById(`speed${motorId}-value`);
+        if (speedSlider) speedSlider.value = s.speed;
+        if (speedValue) speedValue.textContent = s.speed;
+        const dirButtons = document.querySelectorAll(`[data-motor="${motorId}"]`);
+        dirButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.dir) === s.direction));
+        const brakeBtn = document.getElementById(`brakeBtn${motorId}`);
+        if (brakeBtn) brakeBtn.setAttribute('aria-pressed', String(s.brake >= 1));
+    });
 });
 
 socket.on('error', (data) => {
