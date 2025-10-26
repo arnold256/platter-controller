@@ -48,7 +48,7 @@ def handle_connect(auth=None):
         old_sid = client_sessions[session_key]
         was_controlling = queue_manager.is_controlling(old_sid)
         queue_manager.remove_user(old_sid)
-        print(f"Cleaned up old session {old_sid} for IP {client_ip}")
+        print(f"Cleaned up old session {old_sid} for IP {client_ip}", flush=True)
         
         if was_controlling:
             motor_controller.stop_all()
@@ -58,10 +58,10 @@ def handle_connect(auth=None):
     
     position = queue_manager.add_user(client_id)
     
-    print(f"User {client_id} connected at position {position}")
+    print(f"User {client_id} connected at position {position}", flush=True)
     
     if position == 0:
-        print(f"Granting control to {client_id}")
+        print(f"Granting control to {client_id}", flush=True)
         emit('control_granted', {'message': 'You have control'})
         emit('status_update', {
             'controlling': True,
@@ -69,7 +69,7 @@ def handle_connect(auth=None):
             'queue_length': queue_manager.get_queue_length()
         })
     else:
-        print(f"Queuing {client_id} at position {position}")
+        print(f"Queuing {client_id} at position {position}", flush=True)
         emit('queued', {
             'position': position,
             'message': f'You are #{position} in queue'
@@ -117,10 +117,21 @@ def handle_disconnect():
 
 @socketio.on('motor_control')
 def handle_motor_control(data):
+    import sys
+    # Write to a debug file as well to ensure it's captured
+    with open('/tmp/motor_control_debug.log', 'a') as f:
+        f.write(f"MOTOR_CONTROL_HANDLER_CALLED at {time.time()}\n")
+        f.write(f"DATA: {data}\n")
+        f.flush()
+    
+    print(f"MOTOR_CONTROL_HANDLER_CALLED", file=sys.stderr, flush=True)
+    print(f"DATA_RECEIVED: {data}", file=sys.stderr, flush=True)
+    
     client_id = request.sid
+    print(f"CLIENT_ID: {client_id}", file=sys.stderr, flush=True)
     
     if not queue_manager.is_controlling(client_id):
-        print(f"motor_control blocked (no control) from {client_id}: {data}")
+        print(f"motor_control blocked (no control) from {client_id}: {data}", flush=True)
         emit('error', {'message': 'You do not have control'})
         return
     
@@ -129,16 +140,16 @@ def handle_motor_control(data):
     direction = data.get('direction', 0)
     brake = data.get('brake', 0)
     
-    print(f"motor_control received: m={motor_id} speed={speed} dir={direction} brake={brake}")
+    print(f"motor_control received: m={motor_id} speed={speed} dir={direction} brake={brake}", flush=True)
     
     if motor_id in [1, 2, 3]:
-        print(f"motor_control apply m={motor_id} speed={speed} dir={direction} brake={brake}")
+        print(f"motor_control apply m={motor_id} speed={speed} dir={direction} brake={brake}", flush=True)
         try:
-            print(f"calling motor_controller.set_motor...")
+            print(f"calling motor_controller.set_motor...", flush=True)
             motor_controller.set_motor(motor_id, speed, direction, brake)
-            print(f"set_motor returned successfully")
+            print(f"set_motor returned successfully", flush=True)
         except Exception as e:
-            print(f"motor_control error: {e}")
+            print(f"motor_control error: {e}", flush=True)
             import traceback
             traceback.print_exc()
             emit('error', {'message': f'Apply failed: {e}'})

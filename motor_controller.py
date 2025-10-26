@@ -178,7 +178,7 @@ class MotorController:
         brake_is_applied = brake >= config.BRAKE_APPLY_THRESHOLD
         
         # Debug log
-        print(f"set_motor m{motor_id}: speed={speed}, brake={brake}, brake_is_applied={brake_is_applied}, pre_brake_speed={self.pre_brake_speed[motor_id]}")
+        print(f"set_motor m{motor_id}: speed={speed}, brake={brake}, brake_is_applied={brake_is_applied}, pre_brake_speed={self.pre_brake_speed[motor_id]}", flush=True)
         
         # When brake is NOT applied, remember the speed for later restoration
         if not brake_is_applied:
@@ -190,7 +190,7 @@ class MotorController:
         effective_speed = 100 if brake_is_applied else self.pre_brake_speed[motor_id]
         speed_pwm = _map(effective_speed, config.PWM_SPEED_MIN, config.PWM_SPEED_MAX)
         
-        print(f"  effective_speed={effective_speed}, speed_pwm={speed_pwm}")
+        print(f"  effective_speed={effective_speed}, speed_pwm={speed_pwm}", flush=True)
         
         # Brake value
         if config.BRAKE_IS_PWM:
@@ -205,7 +205,7 @@ class MotorController:
         try:
             self.pi.set_PWM_dutycycle(pins['speed'], speed_pwm)
         except Exception as e:
-            print(f"GPIO error(speed) m{motor_id} pin={pins['speed']} duty={speed_pwm}: {e}")
+            print(f"GPIO error(speed) m{motor_id} pin={pins['speed']} duty={speed_pwm}: {e}", flush=True)
             raise
 
         # Apply brake
@@ -213,7 +213,7 @@ class MotorController:
             try:
                 self.pi.set_PWM_dutycycle(pins['brake'], brake_pwm)
             except Exception as e:
-                print(f"GPIO error(brake PWM) m{motor_id} pin={pins['brake']} duty={brake_pwm}: {e}")
+                print(f"GPIO error(brake PWM) m{motor_id} pin={pins['brake']} duty={brake_pwm}: {e}", flush=True)
                 raise
         else:
             # Digital brake: ON if UI >= threshold, else OFF (release)
@@ -222,7 +222,7 @@ class MotorController:
             try:
                 self.pi.write(pins['brake'], level)
             except Exception as e:
-                print(f"GPIO error(brake DIO) m{motor_id} pin={pins['brake']} level={level}: {e}")
+                print(f"GPIO error(brake DIO) m{motor_id} pin={pins['brake']} level={level}: {e}", flush=True)
                 raise
     
     def stop_motor(self, motor_id):
