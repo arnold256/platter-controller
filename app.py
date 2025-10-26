@@ -9,12 +9,15 @@ import time
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 # Use threading async mode for compatibility on Windows and enable verbose logs
+# Optimize for Cloudflare reverse proxy: prefer polling over websocket
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode='threading',
     logger=True,
     engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25,
 )
 
 motor_controller = MotorController()

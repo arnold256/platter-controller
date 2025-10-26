@@ -34,7 +34,11 @@ function debounce(fn, wait) {
 }
 
 // Initialize Socket.IO client FIRST (no auto-connect yet)
-const socket = io({ autoConnect: false });
+// Use long-polling as primary transport for Cloudflare reverse proxy compatibility
+const socket = io({
+    autoConnect: false,
+    transports: ['polling', 'websocket']
+});
 
 // Socket event handlers
 socket.on('connect', () => {
